@@ -183,13 +183,17 @@
   .pile.stacked .pile-card { box-shadow: 2px 2px 0 #fff, 3px 3px 0 var(--pile-edge, var(--neutral)),
     5px 5px 0 #fff, 6px 6px 0 var(--pile-edge, var(--neutral)); }
   .pile.back:not(.empty) .pile-card { outline: 1px solid var(--pile-edge); outline-offset: -7px; }
-  .flying-card { position: fixed; z-index: 100; margin: 0; padding: 7px; pointer-events: none;
+  .flying-card { position: absolute; z-index: 100; margin: 0; padding: 7px; pointer-events: none;
     display: grid; place-content: center; text-align: center; overflow-wrap: anywhere;
     border: 3px solid var(--flight-edge); border-radius: 8px; background: var(--flight-paper);
     color: var(--ink); font-size: 14px; font-weight: 750; box-shadow: 0 8px 24px #0005; }
   .flying-card.clean { --flight-edge: var(--clean); --flight-paper: var(--clean-bg); }
   .flying-card.dirty { --flight-edge: var(--dirty); --flight-paper: var(--dirty-bg); }
   .flying-card.back { outline: 1px solid var(--flight-edge); outline-offset: -8px; }
+  dialog .flying-card { position: fixed; }
+  .shuffle-label { position: absolute; z-index: 120; translate: -50% 0; pointer-events: none;
+    padding: 4px 9px; border-radius: 6px; background: var(--ink); color: white;
+    box-shadow: var(--shadow); font-size: 12px; font-weight: 700; white-space: nowrap; }
   .flying-card small { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
   .pile.clean { --pile-edge: var(--clean); --pile-paper: var(--clean-bg); }
   .pile.dirty { --pile-edge: var(--dirty); --pile-paper: var(--dirty-bg); }
@@ -447,20 +451,24 @@ function cardTarget(team, kind, inst) {
 }
 
 function handBounds(team, inst) {
-  return cardTarget(team, 'hand', inst)?.getBoundingClientRect();
+  return flightBounds(cardTarget(team, 'hand', inst));
+}
+
+function flightBounds(element) {
+  if (!element) return;
+  const { left, top, width, height } = element.getBoundingClientRect();
+  // Dialogs are in the browser's top layer; table flights use page coordinates.
+  const fixed = dlg.open && dlg.contains(element);
+  return { left: left + (fixed ? 0 : window.scrollX), top: top + (fixed ? 0 : window.scrollY), width, height };
 }
 
 function flightCenter(rect, width, height) {
-  // Keep the card visible when one of the piles or the hand is off screen.
-  return {
-    x: Math.max(8, Math.min(rect.left + (rect.width - width) / 2, innerWidth - width - 8)),
-    y: Math.max(8, Math.min(rect.top + (rect.height - height) / 2, innerHeight - height - 8))
-  };
+  return { x: rect.left + (rect.width - width) / 2, y: rect.top + (rect.height - height) / 2 };
 }
 
 function recordShopMove(team, inst, toPlay, action, refill = false) {
   if (!cardMoves) return;
-  const origin = document.querySelector(`[data-action="${action}"]`)?.closest('.card')?.getBoundingClientRect();
+  const origin = flightBounds(document.querySelector(`[data-action="${action}"]`)?.closest('.card'));
   if (!origin) return;
   const viewport = document.querySelector('.shop-viewport');
   const deck = viewport.querySelector('.pile');
@@ -500,10 +508,10 @@ async function animateShopMove(move) {
     return motion.finished.finally(() => card.remove());
   };
   try {
-    await flight(origin, destination?.getBoundingClientRect(), def(inst).name);
+    await flight(origin, flightBounds(destination), def(inst).name);
     displayPiles(team, S.players[team]);
     if (slot) {
-      await flight(viewport.querySelector('.pile-card')?.getBoundingClientRect(), slot.getBoundingClientRect(), '', true);
+      await flight(flightBounds(viewport.querySelector('.pile-card')), flightBounds(slot), '', true);
     }
   } finally {
     if (slot) slot.style.visibility = '';
@@ -576,9 +584,9 @@ async function animateCardMoves(moves, before, batch) {
     if (batch !== flightBatch) break;
     const from = kind === 'draw' ? 'draw' : kind === 'discard' ? 'hand' : 'discard';
     const to = kind === 'draw' ? 'hand' : kind === 'discard' ? 'discard' : 'draw';
-    const start = from === 'hand' ? before.get(inst.u) : cardTarget(team, from)?.getBoundingClientRect();
+    const start = from === 'hand' ? before.get(inst.u) : flightBounds(cardTarget(team, from));
     const hand = to === 'hand' ? cardTarget(team, to, inst) : null;
-    const end = to === 'hand' ? handBounds(team, inst) : cardTarget(team, to)?.getBoundingClientRect();
+    const end = to === 'hand' ? handBounds(team, inst) : flightBounds(cardTarget(team, to));
     if (hand) hand.style.visibility = '';
     if (!start || !end) continue;
 
@@ -599,18 +607,34 @@ async function animateCardMoves(moves, before, batch) {
         delay: delay + duration - 1, duration: 1, fill: 'backwards'
       });
     }
+    const host = document.body;
+    let shuffleLabel;
+    if (shuffle) {
+      shuffleLabel = document.createElement('span');
+      shuffleLabel.className = 'shuffle-label';
+      shuffleLabel.textContent = 'Shuffling...';
+      shuffleLabel.setAttribute('role', 'status');
+      shuffleLabel.style.left = (x + width / 2) + 'px';
+      shuffleLabel.style.top = Math.max(0, y - 39) + 'px';
+      host.append(shuffleLabel);
+      shuffleLabel.animate([
+        { transform: 'translate(0, 0)' },
+        { transform: 'translate(0, 0)', offset: .55 },
+        { transform: `translate(${dx}px, ${dy}px)` }
+      ], { duration, easing: 'ease-in-out', fill: 'forwards' });
+    }
     for (let i = 0; i < flightCount; i++) {
       const card = document.createElement('div');
       card.className = `flying-card ${team}${kind === 'discard' ? '' : ' back'}`;
       card.setAttribute('aria-hidden', 'true');
-      if (!shuffle || i === 0) {
+      if (!shuffle) {
         const label = document.createElement('small');
-        label.textContent = { draw: 'Draw', discard: 'Discard', shuffle: 'Reshuffle' }[kind];
+        label.textContent = { draw: 'Draw', discard: 'Discard' }[kind];
         card.append(label);
         if (kind === 'discard') card.append(def(inst).name);
       }
       Object.assign(card.style, { left: x + 'px', top: y + 'px', width: width + 'px', height: height + 'px' });
-      (dlg.open ? dlg : document.body).append(card);
+      host.append(card);
       flyingCards.add(card);
       const spread = (i - 1) * (straightPath ? 6 : 15);
       const keyframes = shuffle ? [
@@ -643,6 +667,7 @@ async function animateCardMoves(moves, before, batch) {
     }
     if (shuffle) {
       await Promise.allSettled(flights.splice(0));
+      shuffleLabel.remove();
       // Let the rebuilt pile settle visibly before starting the next draw.
       await new Promise(resolve => setTimeout(resolve, 280));
       delay = 0;
@@ -711,7 +736,7 @@ function commit(fn, { outgoingTeam, effectTeam } = {}) {
   const burn = moves.find(move => move.kind === 'burn');
   if (burn) {
     passingTurn = true;
-    const bounds = burn.origin.getBoundingClientRect();
+    const bounds = flightBounds(burn.origin);
     burn.origin.style.opacity = '0';
     return animateBurn(burn.team, burn.inst, bounds).finally(() => {
       burn.origin.style.opacity = '';
