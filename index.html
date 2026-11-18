@@ -6,6 +6,9 @@
 <title>Deck Table</title>
 <style>
   :root {
+    --card-width: 168px;
+    --card-height: calc(var(--card-width) * 7 / 5);
+    --landscape-width: 232px;
     --bg: #f3efe6;
     --panel: #ffffff;
     --ink: #1d1a14;
@@ -34,14 +37,39 @@
   button.small { padding: 3px 8px; font-size: 14px; border-radius: 6px; }
 
   /* Header */
-  header { display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center; padding: 10px 16px;
+  header { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px 16px; align-items: center; padding: 10px 16px;
     background: var(--panel); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 5; }
-  header h1 { font-size: 18px; margin: 0 8px 0 0; }
   .counter { display: inline-flex; align-items: center; gap: 6px; }
   .counter .label { color: var(--muted); font-size: 14px; }
   .counter .value { font-size: 22px; font-weight: 700; min-width: 2ch; text-align: center; }
   .counter button { padding: 2px 10px; font-size: 18px; line-height: 1; }
-  header .spacer { flex: 1; }
+  header > .counter { justify-self: start; }
+  header > .new-game { justify-self: end; white-space: nowrap; }
+  .emissions-tracker { width: min(51vw, 570px); display: grid; grid-template-columns: auto 1fr auto;
+    gap: 4px 6px; align-items: center; }
+  .emissions-tracker strong { grid-column: 1 / -1; color: var(--muted); text-align: center; font-size: 13px; }
+  .emissions-tracker button { padding: 2px 7px; }
+  .emissions-track { display: grid; grid-template-columns: repeat(26, minmax(0, 1fr)); gap: 1px;
+    padding: 3px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+  .emissions-track > span { display: grid; place-items: center; min-height: 23px;
+    border-radius: 3px; font-size: 11px; font-variant-numeric: tabular-nums; }
+  .emissions-track [aria-current="true"] { background: var(--accent); color: white; font-weight: 800; }
+  .effect-pulse { position: relative; z-index: 1; animation: effect-pulse 650ms ease-out; }
+  .effect-change { position: absolute; top: 100%; left: 50%; translate: -50% 2px; pointer-events: none;
+    white-space: nowrap; padding: 2px 7px; border-radius: 8px; background: var(--clean); color: white;
+    font-size: 13px; font-weight: 800; box-shadow: var(--shadow); }
+  .emissions-track .effect-change { background: var(--accent); }
+  @keyframes effect-pulse { 0%, 100% { scale: 1; } 30% { scale: 1.35; } }
+  @media (prefers-reduced-motion: reduce) {
+    .effect-pulse { animation: none; }
+  }
+  @media (max-width: 850px) {
+    header { grid-template-columns: 1fr 1fr; }
+    .emissions-tracker { grid-column: 1 / -1; grid-row: 2; width: min(100%, 570px); justify-self: center; }
+  }
+  @media (max-width: 500px) {
+    .emissions-track { grid-template-columns: repeat(13, minmax(0, 1fr)); }
+  }
 
   .banner { padding: 10px 16px; font-size: 20px; font-weight: 700; text-align: center; }
   .banner.phase { background: var(--warn-bg); border-bottom: 1px solid #e6cf7a; }
@@ -67,18 +95,39 @@
   .stat .label { color: var(--muted); font-size: 14px; }
   .stat .value { font-size: 20px; font-weight: 700; }
   .stat.money .value { font-size: 26px; }
-  .stat button.link { border: none; background: none; padding: 0; text-decoration: underline; color: var(--neutral); }
-  .perm-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .perm-list { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; }
+  .fuel-group { margin-top: 12px; }
+  .fuel-group h3 { margin: 0 0 6px; color: var(--muted); font-size: 14px; font-weight: 600; }
   .perm-list:empty::after { content: "nothing in play yet"; color: var(--muted); font-size: 14px; }
 
+  .turn-announcement { position: fixed; inset: 0; z-index: 110; display: grid; place-items: center; pointer-events: none; }
+  .turn-announcement:empty { display: none; }
+  .turn-announcement span { max-width: calc(100vw - 32px); padding: 14px 26px; border: 2px solid currentColor;
+    border-radius: 12px; background: var(--panel); box-shadow: 0 8px 28px #0003; text-align: center;
+    font-size: clamp(1.35rem, 4vw, 2.1rem); font-weight: 800; animation: announce-turn 1.5s ease-out both; }
+  .turn-announcement.clean { color: var(--clean); }
+  .turn-announcement.dirty { color: var(--dirty); }
+  @keyframes announce-turn {
+    0% { opacity: 0; transform: translateY(10px); }
+    14%, 75% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-6px); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .turn-announcement span { animation-name: announce-turn-fade; }
+    @keyframes announce-turn-fade { 0%, 100% { opacity: 0; } 14%, 75% { opacity: 1; } }
+  }
+
   /* Cards */
-  .cards { display: flex; flex-wrap: wrap; gap: 12px; }
-  .card { width: 200px; min-height: 150px; border-radius: 10px; border: 2px solid; padding: 10px; display: flex; flex-direction: column; gap: 6px;
+  .cards { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; }
+  .card { width: min(100%, var(--card-width)); height: var(--card-height); overflow-wrap: anywhere; border-radius: 10px; border: 2px solid; padding: 10px; display: flex; flex-direction: column; gap: 6px;
     box-shadow: var(--shadow); background: #fff; }
   .card .top { display: flex; align-items: flex-start; gap: 8px; }
-  .card .cost { flex: none; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 17px; color: #fff; }
+  .card .cost { flex: none; min-width: 32px; padding-inline: 4px; height: 32px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 17px; color: #fff; }
   .card .name { font-weight: 700; font-size: 17px; line-height: 1.2; }
-  .card .text { font-size: 14px; line-height: 1.3; flex: 1; }
+  .card .top, .card .actions { flex-shrink: 0; }
+  .card-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; }
+  .card .text { font-size: 14px; line-height: 1.3; }
+  .card-body > * + * { margin-top: 6px; }
   .card .actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
   .card.clean { border-color: var(--clean); background: var(--clean-bg); }
   .card.clean .cost { background: var(--clean); }
@@ -86,32 +135,83 @@
   .card.dirty .cost { background: var(--dirty); }
   .card.neutral { border-color: var(--neutral); background: var(--neutral-bg); }
   .card.neutral .cost { background: var(--neutral); }
-  .card.sm { width: 180px; min-height: 0; }
+  .card.landscape { width: min(100%, var(--landscape-width)); height: 190px; }
+  .perm-list .card.landscape { width: min(100%, 200px); height: 132px; padding: 7px; gap: 4px; }
+  .perm-list .card .name { font-size: 14px; }
+  .perm-list .card .actions { gap: 4px; margin-top: 0; }
+  .perm-list .card .actions button { font-size: 12px; padding: 2px 5px; }
   .card.sm .name { font-size: 15px; }
   .card.sm .text { font-size: 13px; }
   .card.empty { border-style: dashed; border-color: var(--line); background: transparent; box-shadow: none;
     align-items: center; justify-content: center; color: var(--muted); }
   .card .qty { font-size: 13px; color: var(--muted); }
   .card .auto { font-size: 12px; color: var(--accent); font-weight: 600; }
-  .card .stack { font-size: 20px; font-weight: 800; text-align: right; }
-  .card.stacked { box-shadow: 2px 2px 0 #fff, 3px 3px 0 var(--line), 5px 5px 0 #fff, 6px 6px 0 var(--line); }
+  .card.stacked { position: relative; box-shadow: var(--card-layers); margin: 0 10px 10px 0; }
+  .card.stacked:is(:hover, :focus-within) { z-index: 2; }
+  .stack-count { display: none; position: absolute; top: -8px; inset-inline-end: -8px;
+    padding: 2px 7px; border: 1px solid var(--stack-edge); border-radius: 999px;
+    background: var(--panel); color: var(--ink); box-shadow: var(--shadow); font-size: 12px; font-weight: 800; }
+  .card.stacked:is(:hover, :focus-within) > .stack-count { display: block; }
 
+  .hand-cards { display: flex; flex-wrap: nowrap; align-items: flex-end; gap: 0;
+    isolation: isolate; overflow-x: auto; padding: 26px 8px 10px; }
+  .hand-cards > .card { position: relative; flex: 0 0 auto; transition: transform 150ms ease-out; }
+  .hand-cards > .card + .card { margin-inline-start: clamp(-56px, -7vw, -32px); }
+  .hand-cards > .card:focus-within { z-index: 1; transform: translateY(-18px); box-shadow: 0 7px 18px #0004; }
+  .hand-cards > .card:hover { z-index: 2; transform: translateY(-18px); box-shadow: 0 7px 18px #0004; }
+  @media (prefers-reduced-motion: reduce) {
+    .hand-cards > .card { transition: none; }
+  }
+  .hand-layout { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 14px; }
+  .hand-piles { display: flex; flex-wrap: wrap; gap: 12px; padding: 0 6px 15px 0; }
+  .hand-piles > .pile { width: var(--card-width); max-width: 100%; padding: 0; }
+  .hand-piles .pile-card { border-radius: 10px; }
+  @media (max-width: 780px) {
+    .hand-layout { grid-template-columns: minmax(0, 1fr); }
+    .hand-piles { justify-self: stretch; justify-content: end; }
+  }
   .hand-section h2 { font-size: 18px; }
   .hand-section.clean { border-color: var(--clean); border-width: 2px; }
   .hand-section.dirty { border-color: var(--dirty); border-width: 2px; }
 
-  .shop-grid { display: grid; gap: 14px; }
-  .supply { border-top: 1px solid var(--line); padding-top: 12px; }
-  .shop-row h3, .supply h3 { margin: 0 0 8px; font-size: 15px; text-transform: uppercase; letter-spacing: .04em; }
-  .shop-row.clean h3 { color: var(--clean); }
-  .shop-row.dirty h3 { color: var(--dirty); }
-  .shop-row:not(.mine) { opacity: .55; }
-  .shop-row + .shop-row { border-top: 1px solid var(--line); padding-top: 12px; }
-  .supply h3 { color: var(--neutral); }
+  .pile { display: grid; justify-items: center; align-content: start; gap: 7px; width: 104px;
+    padding: 0 5px 5px; border: 0; background: transparent; color: var(--ink); font-size: 13px; text-align: center; }
+  button.pile:hover { background: transparent; }
+  .pile-card { position: relative; isolation: isolate; display: grid; place-content: center; gap: 5px;
+    width: 100%; aspect-ratio: 5 / 7; padding: 8px; border: 2px solid var(--pile-edge, var(--neutral));
+    border-radius: 8px; background: var(--pile-paper, var(--neutral-bg)); overflow-wrap: anywhere; }
+  .pile.stacked .pile-card { box-shadow: 2px 2px 0 #fff, 3px 3px 0 var(--pile-edge, var(--neutral)),
+    5px 5px 0 #fff, 6px 6px 0 var(--pile-edge, var(--neutral)); }
+  .pile.back:not(.empty) .pile-card { outline: 1px solid var(--pile-edge); outline-offset: -7px; }
+  .flying-card { position: fixed; z-index: 100; margin: 0; padding: 7px; pointer-events: none;
+    display: grid; place-content: center; text-align: center; overflow-wrap: anywhere;
+    border: 3px solid var(--flight-edge); border-radius: 8px; background: var(--flight-paper);
+    color: var(--ink); font-size: 14px; font-weight: 750; box-shadow: 0 8px 24px #0005; }
+  .flying-card.clean { --flight-edge: var(--clean); --flight-paper: var(--clean-bg); }
+  .flying-card.dirty { --flight-edge: var(--dirty); --flight-paper: var(--dirty-bg); }
+  .flying-card.back { outline: 1px solid var(--flight-edge); outline-offset: -8px; }
+  .flying-card small { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+  .pile.clean { --pile-edge: var(--clean); --pile-paper: var(--clean-bg); }
+  .pile.dirty { --pile-edge: var(--dirty); --pile-paper: var(--dirty-bg); }
+  .pile.face-up .pile-card { background: var(--pile-paper, var(--bg)); }
+  .flying-card.burning { overflow: hidden; isolation: isolate; }
+  .burn-flame { position: absolute; inset: 0; z-index: -1;
+    background: linear-gradient(to top, #24140f 12%, #782912 40%, #e75d21 49%, #ffb54d 51%, transparent 58%); }
+  .burn-ember { position: absolute; bottom: 15%; width: 3px; height: 3px; border-radius: 50%;
+    background: #ffe3a3; box-shadow: 0 0 4px 1px #f0702a; }
 
-  .log { font-size: 14px; color: var(--muted); }
-  .log li { margin: 2px 0; }
-  .log li:first-child { color: var(--ink); }
+  .pile.empty .pile-card { background: transparent; border: 2px dashed var(--line); color: var(--muted); }
+  button.pile:hover .pile-card { border-color: var(--accent); }
+  .pile-count { font-weight: 700; }
+  .pile-hint { color: var(--muted); font-size: 12px; }
+  .shop-picker { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .shop-picker button { font-weight: 700; }
+  .shop-picker [aria-pressed="true"] { background: var(--neutral-bg); border-color: var(--neutral); }
+  .shop-viewport { height: clamp(320px, 50vh, 440px); overflow: auto; scrollbar-gutter: stable;
+    padding: 1px 8px 8px 1px; }
+  .shop-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--card-width)), 1fr)); gap: 10px; }
+  .shop-cards.permanent-shop { grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--landscape-width)), 1fr)); }
+  .shop-cards .pile { align-self: start; justify-self: center; width: 104px; }
 
   dialog { border: 1px solid var(--line); border-radius: 12px; padding: 16px; max-width: min(96vw, 1100px); box-shadow: 0 10px 40px rgba(0,0,0,.25); }
   dialog::backdrop { background: rgba(0,0,0,.35); }
@@ -125,7 +225,6 @@
 
   @media (max-width: 900px) {
     .players { grid-template-columns: 1fr; }
-    .card { width: 170px; }
   }
 </style>
 </head>
@@ -141,6 +240,7 @@
 <header id="header"></header>
 <div id="banner"></div>
 <main id="main"></main>
+<div id="turn-announcement" class="turn-announcement" role="status" aria-atomic="true"></div>
 
 <dialog id="dlg"></dialog>
 
@@ -158,6 +258,8 @@ const PERM_SLOTS = 3;
 let MAX_TURNS = 30;
 let PHASE_EVERY = 4;
 let STARTING_PLAY = { clean: {}, dirty: {} };
+const MAX_EMISSIONS = 25;
+const clampEmissions = level => Math.min(MAX_EMISSIONS, Math.max(0, Math.trunc(level)));
 let STARTING_EMISSIONS = 5;
 const UNDO_DEPTH = 50;
 const SAVE_KEY = 'deckTable.save.v2';
@@ -177,7 +279,7 @@ function setCards(json) {
   const setup = json.setup || {};
   if (setup.max_turns > 0) MAX_TURNS = setup.max_turns;
   if (setup.power_phase_every > 0) PHASE_EVERY = setup.power_phase_every;
-  if (setup.starting_emissions >= 0) STARTING_EMISSIONS = setup.starting_emissions;
+  if (setup.starting_emissions >= 0) STARTING_EMISSIONS = clampEmissions(setup.starting_emissions);
   STARTING_PLAY = { clean: {}, dirty: {}, ...(setup.starting_play || {}) };
   try { localStorage.setItem(CARDS_KEY, JSON.stringify(json)); } catch (e) {}
 }
@@ -253,9 +355,12 @@ function drawCards(team, n) {
       if (p.discard.length === 0) break;
       p.draw = shuffle(p.discard);
       p.discard = [];
+      recordCardMove(team, 'shuffle');
       log(`${TEAM_LABEL[team]} reshuffled discard pile into a new draw pile.`);
     }
-    p.hand.push(p.draw.pop());
+    const inst = p.draw.pop();
+    p.hand.push(inst);
+    recordCardMove(team, 'draw', inst);
     drawn++;
   }
   return drawn;
@@ -302,20 +407,350 @@ function load() {
     if (!raw) return false;
     const data = JSON.parse(raw);
     if (!data.state || !data.state.players) return false;
-    S = data.state; history = data.history || [];
+    S = data.state;
+    S.emissions = clampEmissions(S.emissions);
+    history = data.history || [];
     return true;
   } catch (e) { return false; }
 }
-function commit(fn) {
+// Capture the old layout before rendering the updated game state.
+let cardMoves = null;
+let passingTurn = false;
+let flightBatch = 0;
+
+function pileSnapshot(team) {
+  const { draw, discard } = S.players[team];
+  return { draw: draw.slice(), discard: discard.slice() };
+}
+
+function recordCardMove(team, kind, inst, origin) {
+  if (cardMoves) cardMoves.push({ team, kind, inst, origin, piles: pileSnapshot(team) });
+}
+
+function displayPiles(team, piles) {
+  for (const kind of ['draw', 'discard']) {
+    const pile = document.querySelector(`[data-pile="${team}-${kind}"]`);
+    if (pile) pile.outerHTML = playerPileHtml(team, kind, piles[kind]);
+  }
+}
+const flyingCards = new Set();
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+function clearCardFlights() {
+  flightBatch++;
+  for (const card of flyingCards) card.remove();
+  flyingCards.clear();
+}
+
+function cardTarget(team, kind, inst) {
+  if (kind !== 'hand') return document.querySelector(`[data-pile="${team}-${kind}"] .pile-card`);
+  return document.querySelector(`[data-action="play:${team}:${inst.u}"]`)?.closest('.card');
+}
+
+function handBounds(team, inst) {
+  return cardTarget(team, 'hand', inst)?.getBoundingClientRect();
+}
+
+function flightCenter(rect, width, height) {
+  // Keep the card visible when one of the piles or the hand is off screen.
+  return {
+    x: Math.max(8, Math.min(rect.left + (rect.width - width) / 2, innerWidth - width - 8)),
+    y: Math.max(8, Math.min(rect.top + (rect.height - height) / 2, innerHeight - height - 8))
+  };
+}
+
+function recordShopMove(team, inst, toPlay, action, refill = false) {
+  if (!cardMoves) return;
+  const origin = document.querySelector(`[data-action="${action}"]`)?.closest('.card')?.getBoundingClientRect();
+  if (!origin) return;
+  const viewport = document.querySelector('.shop-viewport');
+  const deck = viewport.querySelector('.pile');
+  cardMoves.push({ kind: 'shop', team, inst, toPlay, action, refill, origin,
+    shopScroll: viewport.scrollTop, previousDeck: deck?.outerHTML });
+}
+
+async function animateShopMove(move) {
+  const { team, inst, toPlay, action, refill, origin, shopScroll, previousDeck } = move;
+  const viewport = document.querySelector('.shop-viewport');
+  viewport.scrollTop = shopScroll;
+  const slot = refill ? viewport.querySelector(`[data-action="${action}"]`)?.closest('.card') : null;
+  const deck = viewport.querySelector('.pile');
+  const finalDeck = deck?.outerHTML;
+  if (slot) slot.style.visibility = 'hidden';
+  if (deck && previousDeck) deck.outerHTML = previousDeck;
+
+  const destination = toPlay
+    ? document.querySelector(`.player.${team} .perm-list [data-card-id="${inst.c}"]`)
+    : cardTarget(team, 'discard');
+  const flight = (start, end, label, faceDown = false) => {
+    const width = Math.min(100, innerWidth - 16);
+    const height = Math.min(width * 7 / 5, innerHeight - 16);
+    if (!start || !end || width <= 0 || height <= 0) return;
+    const { x, y } = flightCenter(start, width, height);
+    const target = flightCenter(end, width, height);
+    const card = document.createElement('div');
+    card.className = `flying-card ${team}${faceDown ? ' back' : ''}`;
+    card.setAttribute('aria-hidden', 'true');
+    card.textContent = label;
+    Object.assign(card.style, { left: x + 'px', top: y + 'px', width: width + 'px', height: height + 'px' });
+    document.body.append(card);
+    const motion = card.animate([
+      { transform: 'translate(0, 0)' },
+      { transform: `translate(${target.x - x}px, ${target.y - y}px)` }
+    ], { duration: faceDown ? 370 : 490, easing: 'ease-in-out' });
+    return motion.finished.finally(() => card.remove());
+  };
+  try {
+    await flight(origin, destination?.getBoundingClientRect(), def(inst).name);
+    displayPiles(team, S.players[team]);
+    if (slot) {
+      await flight(viewport.querySelector('.pile-card')?.getBoundingClientRect(), slot.getBoundingClientRect(), '', true);
+    }
+  } finally {
+    if (slot) slot.style.visibility = '';
+    if (finalDeck) viewport.querySelector('.pile').outerHTML = finalDeck;
+  }
+}
+
+function animateBurn(team, inst, origin) {
+  const card = document.createElement('div');
+  card.className = `flying-card ${team} burning`;
+  card.setAttribute('aria-hidden', 'true');
+  card.textContent = def(inst).name;
+  const flame = document.createElement('span');
+  flame.className = 'burn-flame';
+  card.append(flame);
+  const width = Math.min(origin.width, innerWidth - 16);
+  const height = Math.min(origin.height, innerHeight - 16);
+  const { x, y } = flightCenter(origin, width, height);
+  Object.assign(card.style, { left: x + 'px', top: y + 'px', width: width + 'px', height: height + 'px' });
+  (dlg.open ? dlg : document.body).append(card);
+  flyingCards.add(card);
+
+  flame.animate([
+    { transform: 'translateY(65%)', opacity: 0 },
+    { transform: 'translateY(40%)', opacity: .95, offset: .32 },
+    { transform: 'translateY(-12%)', opacity: 1, offset: .68 },
+    { transform: 'translateY(-58%)', opacity: .8 }
+  ], { duration: 850, easing: 'ease-out', fill: 'both' });
+  for (let i = 0; i < 4; i++) {
+    const ember = document.createElement('span');
+    ember.className = 'burn-ember';
+    ember.style.left = (20 + i * 19) + '%';
+    flame.append(ember);
+    ember.animate([
+      { transform: 'translate(0, 0)', opacity: 0 },
+      { opacity: 1, offset: .2 },
+      { transform: `translate(${(i % 3 - 1) * 24}px, ${-height * .8}px)`, opacity: 0 }
+    ], { duration: 650, delay: 160 + i % 3 * 45, fill: 'both' });
+  }
+  const motion = card.animate([
+    { clipPath: 'inset(0 0 0 0)', opacity: 1 },
+    { clipPath: 'inset(0 0 0 0)', opacity: 1, offset: .45 },
+    { clipPath: 'inset(0 0 55% 0)', opacity: .9, offset: .72 },
+    { clipPath: 'inset(0 0 100% 0)', opacity: 0 }
+  ], { duration: 975 });
+  return motion.finished.finally(() => {
+    card.remove();
+    flyingCards.delete(card);
+  });
+}
+
+async function animateCardMoves(moves, before, batch) {
+  const flights = [];
+  const straightPath = reducedMotion.matches;
+  // Draw destinations already exist in the layout, but are revealed on arrival.
+  for (const { team, kind, inst } of moves) {
+    if (kind !== 'draw') continue;
+    const hand = cardTarget(team, 'hand', inst);
+    if (hand) hand.style.visibility = 'hidden';
+  }
+  let delay = 0;
+  let lastKind;
+  for (const { team, kind, inst, piles } of moves) {
+    const shuffle = kind === 'shuffle';
+    if (shuffle) {
+      await Promise.allSettled(flights.splice(0));
+      delay = 0;
+      lastKind = undefined;
+    }
+    if (batch !== flightBatch) break;
+    const from = kind === 'draw' ? 'draw' : kind === 'discard' ? 'hand' : 'discard';
+    const to = kind === 'draw' ? 'hand' : kind === 'discard' ? 'discard' : 'draw';
+    const start = from === 'hand' ? before.get(inst.u) : cardTarget(team, from)?.getBoundingClientRect();
+    const hand = to === 'hand' ? cardTarget(team, to, inst) : null;
+    const end = to === 'hand' ? handBounds(team, inst) : cardTarget(team, to)?.getBoundingClientRect();
+    if (hand) hand.style.visibility = '';
+    if (!start || !end) continue;
+
+    if (lastKind) delay += lastKind === kind ? 95 : 650;
+    lastKind = kind;
+    const flightCount = shuffle ? 3 : 1;
+    const width = Math.min(108, innerWidth - 16, (innerHeight - 16) * 5 / 7);
+    if (width <= 0) continue;
+    const height = width * 7 / 5;
+    const { x, y } = flightCenter(start, width, height);
+    const destination = flightCenter(end, width, height);
+    const dx = destination.x - x;
+    const dy = destination.y - y;
+    const duration = shuffle ? 1150 : 620;
+
+    if (hand) {
+      hand.animate([{ opacity: 0 }, { opacity: 1 }], {
+        delay: delay + duration - 1, duration: 1, fill: 'backwards'
+      });
+    }
+    for (let i = 0; i < flightCount; i++) {
+      const card = document.createElement('div');
+      card.className = `flying-card ${team}${kind === 'discard' ? '' : ' back'}`;
+      card.setAttribute('aria-hidden', 'true');
+      if (!shuffle || i === 0) {
+        const label = document.createElement('small');
+        label.textContent = { draw: 'Draw', discard: 'Discard', shuffle: 'Reshuffle' }[kind];
+        card.append(label);
+        if (kind === 'discard') card.append(def(inst).name);
+      }
+      Object.assign(card.style, { left: x + 'px', top: y + 'px', width: width + 'px', height: height + 'px' });
+      (dlg.open ? dlg : document.body).append(card);
+      flyingCards.add(card);
+      const spread = (i - 1) * (straightPath ? 6 : 15);
+      const keyframes = shuffle ? [
+        { transform: 'translate(0, 0)', opacity: 0 },
+        { transform: 'translate(0, 0)', opacity: 1, offset: .05 },
+        { transform: `translate(${spread - 9}px, -8px)`, opacity: 1, offset: .17 },
+        { transform: `translate(${12 - spread}px, -3px)`, opacity: 1, offset: .29 },
+        { transform: `translate(${spread - 7}px, -10px)`, opacity: 1, offset: .41 },
+        { transform: 'translate(0, -6px)', opacity: 1, offset: .55 },
+        { transform: `translate(${dx}px, ${dy}px)`, opacity: 1 }
+      ] : straightPath ? [
+        { transform: 'translate(0, 0)', opacity: 0 },
+        { transform: 'translate(0, 0)', opacity: 1, offset: .06 },
+        { transform: `translate(${dx}px, ${dy}px)`, opacity: 1 }
+      ] : [
+        { transform: 'translate(0, 0)', opacity: 0 },
+        { transform: 'translate(0, 0)', opacity: .95, offset: .02 },
+        { transform: `translate(${dx * .5}px, ${dy * .5 - 48 - i * 12}px) rotate(-5deg)`,
+          opacity: 1, offset: .5 },
+        { transform: `translate(${dx}px, ${dy}px)`, opacity: .9 }
+      ];
+      const motion = card.animate(keyframes, { duration, delay: delay + i * 85, easing: 'ease-in-out', fill: 'backwards' });
+      flights.push(motion.finished.then(() => {
+        if (batch === flightBatch && i === flightCount - 1) displayPiles(team, piles);
+      }));
+      motion.onfinish = () => {
+        card.remove();
+        flyingCards.delete(card);
+      };
+    }
+    if (shuffle) {
+      await Promise.allSettled(flights.splice(0));
+      // Let the rebuilt pile settle visibly before starting the next draw.
+      await new Promise(resolve => setTimeout(resolve, 280));
+      delay = 0;
+      lastKind = undefined;
+    }
+  }
+  return Promise.allSettled(flights);
+}
+
+function announceTurn(team) {
+  const announcement = document.getElementById('turn-announcement');
+  const label = document.createElement('span');
+  label.textContent = TEAM_LABEL[team] + " Energy's turn";
+  announcement.className = 'turn-announcement ' + team;
+  announcement.replaceChildren(label);
+  setTimeout(() => label.remove(), 1500);
+}
+
+function showAutomaticEffects(team, before) {
+  if (!before) return;
+  const showChange = (selector, label) => {
+    const value = document.querySelector(selector);
+    if (!value) return;
+    const change = document.createElement('span');
+    change.className = 'effect-change';
+    change.textContent = label;
+    change.setAttribute('role', 'status');
+    value.classList.add('effect-pulse');
+    value.append(change);
+    setTimeout(() => {
+      change.remove();
+      value.classList.remove('effect-pulse');
+    }, 1050);
+  };
+  const money = S.players[team].money - before.money;
+  const emissions = S.emissions - before.emissions;
+  if (money > 0) showChange(`[data-money-value="${team}"]`, '+$' + money);
+  if (emissions < 0) showChange('.emissions-track [aria-current="true"]', '−' + Math.abs(emissions));
+}
+
+function commit(fn, { outgoingTeam, effectTeam } = {}) {
+  const effectsBefore = effectTeam ? { money: S.players[effectTeam].money, emissions: S.emissions } : null;
   history.push(JSON.stringify(S));
   if (history.length > UNDO_DEPTH) history.shift();
+  clearCardFlights();
+  const animate = typeof Element.prototype.animate === 'function';
+  const before = new Map();
+  const originalPiles = {};
+  if (animate) {
+    for (const team of TEAMS) {
+      originalPiles[team] = pileSnapshot(team);
+      for (const inst of S.players[team].hand) before.set(inst.u, handBounds(team, inst));
+    }
+    cardMoves = [];
+  }
   fn();
+  const moves = cardMoves;
+  cardMoves = null;
   save();
-  render();
+  if (!moves?.length) {
+    render();
+    showAutomaticEffects(effectTeam, effectsBefore);
+    if (outgoingTeam) announceTurn(S.active);
+    return;
+  }
+  const burn = moves.find(move => move.kind === 'burn');
+  if (burn) {
+    passingTurn = true;
+    const bounds = burn.origin.getBoundingClientRect();
+    burn.origin.style.opacity = '0';
+    return animateBurn(burn.team, burn.inst, bounds).finally(() => {
+      burn.origin.style.opacity = '';
+      passingTurn = false;
+      render();
+    });
+  }
+  const purchase = moves.find(move => move.kind === 'shop');
+  if (purchase) {
+    passingTurn = true;
+    render(undefined, originalPiles);
+    return animateShopMove(purchase).finally(() => { passingTurn = false; });
+  }
+  const blockActions = Boolean(outgoingTeam) || moves.some(move => move.kind === 'shuffle');
+  if (blockActions) passingTurn = true;
+  const batch = flightBatch;
+  const movingTeams = new Set(moves.map(move => move.team));
+  const visiblePiles = Object.fromEntries([...movingTeams].map(team => [team, originalPiles[team]]));
+  render(outgoingTeam, visiblePiles);
+  showAutomaticEffects(effectTeam, effectsBefore);
+  queueMicrotask(async () => {
+    try {
+      await animateCardMoves(moves, before, batch);
+    } finally {
+      if (blockActions) passingTurn = false;
+      if (outgoingTeam) {
+        render();
+        announceTurn(S.active);
+      } else if (batch === flightBatch) {
+        for (const team of movingTeams) displayPiles(team, S.players[team]);
+      }
+    }
+  });
 }
 function undo() {
   if (!history.length) return;
+  clearCardFlights();
   S = JSON.parse(history.pop());
+  S.emissions = clampEmissions(S.emissions);
   save();
   render();
 }
@@ -323,14 +758,61 @@ function undo() {
 // ---------------------------------------------------------------------------
 // Actions
 // ---------------------------------------------------------------------------
+const MANUAL_SUPPLY = {
+  'dirty-starter-drilling': ['natural-gas', 1],
+  'dirty-shop-landfill-gas-recovery': ['natural-gas', 1],
+  'dirty-shop-deforestation': ['wood', 3],
+  'dirty-shop-fracking': ['natural-gas', 2],
+  'dirty-shop-strip-mining': ['coal', 2],
+  'dirty-permanent-offshore-oil-wells-policy': ['natural-gas', 2],
+};
+const EXPENDABLE_FUEL = new Set([
+  'neutral-neutral-wood', 'neutral-neutral-coal',
+  'neutral-neutral-natural-gas', 'neutral-neutral-synthetic-fuel',
+]);
+const DATACENTER = 'dirty-permanent-datacenter';
+
+const EMISSIONS_REDUCTIONS = {
+  'clean-starter-community-mobilization': { levelBased: true },
+  'clean-shop-public-transit': { amount: 1 },
+  'clean-shop-anti-idling-campaign': { amount: 2 },
+  'clean-shop-community-composting': { amount: 1 },
+  'dirty-shop-sustainable-biofuels': { amount: 2 },
+  'clean-permanent-biophilic-architecture': { amount: 3 },
+  'clean-permanent-transportation-electrification-policy': { amount: 2 },
+  'clean-permanent-industrial-electrification-policy': { amount: 2 },
+  'dirty-permanent-transportation-electrification-policy': { amount: 2 },
+  'dirty-permanent-industrial-electrification-policy': { amount: 2 },
+};
+
+function emissionsReduction(effect) {
+  if (!effect) return 0;
+  return effect.levelBased ? Math.floor(S.emissions / 5) : effect.amount;
+}
+
+function applyEmissionsReduction(amount) {
+  if (amount) S.emissions = Math.max(0, S.emissions - amount);
+}
+
+function grantSupplyPickups(cardId) {
+  const grant = MANUAL_SUPPLY[cardId];
+  if (!grant) return;
+  const [resource, count] = grant;
+  const id = 'neutral-neutral-' + resource;
+  S.freeSupply ??= {};
+  S.freeSupply[id] = (S.freeSupply[id] ?? 0) + count;
+}
+
 const A = {
   adjust(field, delta) {
     commit(() => {
-      S[field] = Math.max(0, S[field] + delta);
+      const next = S[field] + delta;
+      S[field] = field === 'emissions' ? clampEmissions(next) : Math.max(0, next);
       log(`${field[0].toUpperCase() + field.slice(1)} set to ${S[field]}.`);
     });
   },
   money(team, delta) {
+    if (team !== S.active) return;
     commit(() => {
       const p = S.players[team];
       p.money = Math.max(0, p.money + delta);
@@ -339,15 +821,23 @@ const A = {
   },
   draw(team, n = 1) {
     commit(() => {
+      const p = S.players[team];
+      const wasEmpty = p.hand.length === 0;
       const got = drawCards(team, n);
+      if (team === S.active && wasEmpty && got) p.preparingHand = true;
       log(`${TEAM_LABEL[team]} drew ${got} card${got === 1 ? '' : 's'}.`);
     });
   },
   play(team, uid) {
+    const card = S.players[team].hand.find(inst => inst.u === uid);
+    if (!card) return;
+    const reduction = emissionsReduction(EMISSIONS_REDUCTIONS[card.c]);
     commit(() => {
       const p = S.players[team];
       const inst = takeFrom(p.hand, uid); if (!inst) return;
+      p.preparingHand = false;
       p.discard.push(inst);
+      recordCardMove(team, 'discard', inst);
       const d = def(inst);
       log(`${TEAM_LABEL[team]} played ${d.name}.`);
       if (d.money > 0) {
@@ -359,17 +849,21 @@ const A = {
         const rd = CARDS[rid];
         log(`${d.name}: took ${got} ${rd ? rd.name : rid} into play${got < n ? ` (supply ran out, wanted ${n})` : ''}.`);
       }
+      applyEmissionsReduction(reduction);
+      if (team === S.active) grantSupplyPickups(d.id);
       if (d.trash > 0 && team === S.active) {
         S.trashLeft += d.trash;
         log(`${d.name} allows ${d.trash} trash${d.trash === 1 ? '' : 'es'} this turn.`);
       }
-    });
+    }, { effectTeam: team });
   },
   discardFromHand(team, uid) {
     commit(() => {
       const p = S.players[team];
       const inst = takeFrom(p.hand, uid); if (!inst) return;
+      p.preparingHand = false;
       p.discard.push(inst);
+      recordCardMove(team, 'discard', inst);
       log(`${TEAM_LABEL[team]} discarded ${def(inst).name} from hand.`);
     });
   },
@@ -377,28 +871,53 @@ const A = {
   // played card) | 'Removed' (cards in play, e.g. a destroyed building).
   // from: 'hand' | 'discard' | 'permanents'. All go to the removed-from-game pile.
   remove(team, from, uid, verb) {
-    if (verb === 'Burned' && !canBurn(team)) return;
+    if (from === 'permanents' && team !== S.active) return;
+    const candidate = S.players[team][from].find(inst => inst.u === uid);
+    if (!candidate || (verb === 'Burned' && !canBurn(team, candidate))) return;
     if (verb === 'Trashed' && !canTrash(team)) return;
-    commit(() => {
+    const origin = verb === 'Burned'
+      ? document.querySelector(`[data-action="remove:${team}:${from}:${uid}:Burned"]`)?.closest('.card')
+      : null;
+    return commit(() => {
       const p = S.players[team];
       const inst = takeFrom(p[from], uid); if (!inst) return;
+      if (from === 'hand') p.preparingHand = false;
       p.burned.push(inst);
+      if (origin) recordCardMove(team, 'burn', inst, origin);
       if (verb === 'Trashed') S.trashLeft--;
       log(`${TEAM_LABEL[team]} ${verb.toLowerCase()} ${def(inst).name} from ${from === 'permanents' ? 'play' : from}.`);
     });
   },
-  buyShop(team, slot) {
-    if (team !== S.active) return;
+  activatePermanent(team, uid) {
+    if (team !== S.active || S.activatedPermanents?.includes(uid)) return;
+    const inst = S.players[team].permanents.find(card => card.u === uid);
+    if (!inst || (inst.c !== DATACENTER && !MANUAL_SUPPLY[inst.c] && !EMISSIONS_REDUCTIONS[inst.c])) return;
+    const reduction = emissionsReduction(EMISSIONS_REDUCTIONS[inst.c]);
+    commit(() => {
+      (S.activatedPermanents ??= []).push(uid);
+      if (inst.c === DATACENTER) S.freeShop = (S.freeShop ?? 0) + 1;
+      else grantSupplyPickups(inst.c);
+      applyEmissionsReduction(reduction);
+      log(`${TEAM_LABEL[team]} activated ${def(inst).name}.`);
+    }, { effectTeam: team });
+  },
+  buyShop(team, slot, free = false) {
+    if (team !== S.active || (free && !S.freeShop)) return;
     commit(() => {
       const p = S.players[team], shop = S.shops[team];
       const inst = shop.row[slot]; if (!inst) return;
       const d = def(inst);
-      if (p.money < d.cost) return;
-      p.money -= d.cost;
+      if (free) S.freeShop--;
+      else {
+        if (p.money < d.cost) return;
+        p.money -= d.cost;
+      }
       shop.row[slot] = null;
-      (d.permanent ? p.permanents : p.discard).push(inst);
+      const toPlay = d.permanent && !free;
+      (toPlay ? p.permanents : p.discard).push(inst);
       refillShop();
-      log(`${TEAM_LABEL[team]} bought ${d.name} for ${d.cost}${d.permanent ? ' (into play)' : ''}.`);
+      recordShopMove(team, inst, toPlay, `buyShop:${team}:${slot}`, Boolean(shop.row[slot]));
+      log(`${TEAM_LABEL[team]} ${free ? 'took ' + d.name + ' for free' : 'bought ' + d.name + ' for ' + d.cost}.`);
     });
   },
   buyPermanent(team, slot) {
@@ -412,6 +931,7 @@ const A = {
       shop.permRow[slot] = null;
       p.permanents.push(inst);
       refillShop();
+      recordShopMove(team, inst, true, `buyPermanent:${team}:${slot}`, Boolean(shop.permRow[slot]));
       log(`${TEAM_LABEL[team]} bought permanent ${d.name} for ${d.cost} (into play).`);
     });
   },
@@ -419,12 +939,16 @@ const A = {
   // Permanents and taken resources go into play ("in front of you"); bought
   // non-permanents go to discard.
   supply(cardId, mode) {
+    if (EXPENDABLE_FUEL.has(cardId) && S.active !== 'dirty') return;
+    if (mode !== 'buy' && (mode !== 'take' || !S.freeSupply?.[cardId])) return;
     commit(() => {
       const team = S.active, p = S.players[team];
       const d = CARDS[cardId]; if (!d || !supplyHas(cardId)) return;
       if (mode === 'buy') {
         if (p.money < d.cost) return;
         p.money -= d.cost;
+      } else {
+        S.freeSupply[cardId]--;
       }
       // Permanents and resources always go into play; only deck cards like
       // State grants go to the discard pile when bought.
@@ -434,23 +958,36 @@ const A = {
         if (S.supply[cardId] !== null) S.supply[cardId]--;
         p.discard.push({ u: S.nextUid++, c: cardId });
       }
+      const acquired = toPlay ? p.permanents.at(-1) : p.discard.at(-1);
+      recordShopMove(team, acquired, toPlay, `supply:${cardId}:${mode}`);
       log(`${TEAM_LABEL[team]} ${mode === 'buy' ? 'bought' : 'took'} ${d.name}${mode === 'buy' ? ' for ' + d.cost : ''}${toPlay ? ' (into play)' : ''}.`);
     });
   },
   endTurn() {
+    const team = S.active;
     commit(() => {
-      const team = S.active, p = S.players[team];
-      const n = p.hand.length, unspent = p.money;
-      p.discard.push(...p.hand); p.hand = [];
+      const p = S.players[team];
+      // A manual refill starts only after the current hand has been cleared.
+      const leftovers = p.hand.splice(p.preparingHand ? HAND_SIZE : 0);
+      const n = leftovers.length, unspent = p.money;
+      for (const inst of leftovers) {
+        p.discard.push(inst);
+        recordCardMove(team, 'discard', inst);
+      }
+      p.preparingHand = false;
       p.money = 0;
-      drawCards(team, HAND_SIZE);
+      drawCards(team, HAND_SIZE - p.hand.length);
       log(`${TEAM_LABEL[team]} ended turn: discarded ${n}, drew to ${p.hand.length}${unspent ? `, lost ${unspent} unspent money` : ''}.`);
       S.trashLeft = 0;
+      S.freeSupply = {};
+      S.freeShop = 0;
+      S.activatedPermanents = [];
       S.active = team === 'clean' ? 'dirty' : 'clean';
       if (S.active === 'clean') { S.turn++; log(`Turn ${S.turn} begins.`); }
-    });
+    }, { outgoingTeam: team });
   },
   newGame() {
+    clearCardFlights();
     history = [];
     newState();
     save();
@@ -459,11 +996,10 @@ const A = {
 };
 
 // Rules: only Dirty burns; anyone may trash only while a played card grants it.
-const canBurn = team => team === 'dirty';
+const canBurn = (team, inst) => team === 'dirty' && !def(inst).permanent;
 // Neutral supply: null = unlimited pile.
 const supplyHas = id => S.supply[id] === null || S.supply[id] > 0;
 const canTrash = team => team === S.active && S.trashLeft > 0;
-const REMOVED_LABEL = { clean: 'Removed', dirty: 'Burned' };
 
 // ---------------------------------------------------------------------------
 // Rendering
@@ -471,18 +1007,29 @@ const REMOVED_LABEL = { clean: 'Removed', dirty: 'Burned' };
 const esc = s => String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 
 function autoNotes(d) {
-  const notes = [];
-  if (d.money > 0) notes.push(`+${d.money} money`);
-  for (const [rid, n] of Object.entries(d.resources || {})) notes.push(`takes ${n} ${CARDS[rid] ? CARDS[rid].name : rid}`);
-  return notes.length ? `<div class="auto">⚙ ${esc(notes.join(' · '))} automatically when played</div>` : '';
+  const effects = [];
+  if (d.money > 0) effects.push('money');
+  if (Object.keys(d.resources || {}).length) effects.push('resources');
+  if (EMISSIONS_REDUCTIONS[d.id]) effects.push('emissions');
+  return effects.length ? `<div class="auto">Auto: ${effects.join(' · ')}</div>` : '';
 }
-function cardHtml(d, { small = false, actions = '', extra = '' } = {}) {
-  return `<div class="card ${d.team}${small ? ' sm' : ''}${extra.includes('class="stack"') ? ' stacked' : ''}">
-    <div class="top"><div class="cost">${d.cost}</div><div class="name">${esc(d.name)}</div></div>
-    <div class="text">${esc(d.text)}</div>
-    ${autoNotes(d)}
+function cardHtml(d, { small = false, actions = '', extra = '', copies = 1, horizontal = d.permanent } = {}) {
+  const layered = copies > 1;
+  const depth = Math.min(copies - 1, 3);
+  const layers = Array.from({ length: depth }, (_, i) => {
+    const offset = (i + 1) * 3;
+    return `${offset - 1}px ${offset - 1}px 0 var(--panel), ${offset}px ${offset}px 0 var(--${d.team})`;
+  }).join(', ');
+  return `<div data-card-id="${esc(d.id)}" class="card ${d.team}${small ? ' sm' : ''}${horizontal ? ' landscape' : ''}${layered ? ' stacked' : ''}"
+    ${layered ? `style="--card-layers:${layers};--stack-edge:var(--${d.team})" aria-label="${copies} copies of ${esc(d.name)}" title="${copies} copies"` : ''}>
+    <div class="top"><div class="cost">$${d.cost}</div><div class="name">${esc(d.name)}</div></div>
+    <div class="card-body">
+      <div class="text">${esc(d.text)}</div>
+      ${autoNotes(d)}
+    </div>
     ${extra}
     ${actions ? `<div class="actions">${actions}</div>` : ''}
+    ${layered ? `<span class="stack-count" aria-hidden="true">x${copies}</span>` : ''}
   </div>`;
 }
 const btn = (label, action, cls = 'small') => `<button class="${cls}" data-action="${esc(action)}">${esc(label)}</button>`;
@@ -490,17 +1037,48 @@ const counter = (label, field) =>
   `<div class="counter"><span class="label">${label}</span>
      <button data-action="adjust:${field}:-1">−</button><span class="value">${S[field]}</span><button data-action="adjust:${field}:1">+</button></div>`;
 
-function render() {
-  const active = S.active, other = active === 'clean' ? 'dirty' : 'clean';
+function pileHtml(label, cards, { style = '', action = '', faceUp = false, hint = '', id = '' } = {}) {
+  const count = cards.length;
+  const tag = action ? 'button' : 'div';
+  const top = count && faceUp ? `<span>${esc(def(cards[count - 1]).name)}</span>` : '';
+  const status = count ? (count > 1 ? 'stacked' : '') : 'empty';
+  return `<${tag} class="pile ${style} ${status}" ${id ? 'data-pile="' + id + '"' : ''} ${action ? 'data-action="' + action + '"' : ''}>
+    <strong>${label}</strong>
+    <span class="pile-card">${top}${count || hint ? `<span class="pile-count">${count} ${count === 1 ? 'card' : 'cards'}</span>` : ''}
+      ${hint ? `<span class="pile-hint">${hint}</span>` : ''}</span>
+  </${tag}>`;
+}
+
+function playerPileHtml(team, kind, cards) {
+  const id = `${team}-${kind}`;
+  if (kind === 'draw') {
+    return pileHtml('Draw pile', cards, { style: 'back ' + team, action: `draw:${team}:1`, hint: 'Draw 1', id });
+  }
+  return pileHtml('Discard pile', cards, {
+    id, style: 'face-up ' + team, action: cards.length ? `showPile:${team}:discard` : '', faceUp: true
+  });
+}
+
+function emissionsTracker() {
+  const level = S.emissions;
+  const cells = Array.from({ length: MAX_EMISSIONS + 1 }, (_, value) =>
+    `<span${value === level ? ' aria-current="true"' : ''}>${value}</span>`
+  ).join('');
+  return `<div class="emissions-tracker" role="group" aria-label="Emissions tracker">
+    <strong>Emissions</strong>
+    <button class="small" aria-label="Decrease emissions" data-action="adjust:emissions:-1" ${level === 0 ? 'disabled' : ''}>−</button>
+    <div class="emissions-track" role="meter" aria-label="Emissions" aria-valuemin="0" aria-valuemax="${MAX_EMISSIONS}" aria-valuenow="${level}">${cells}</div>
+    <button class="small" aria-label="Increase emissions" data-action="adjust:emissions:1" ${level === MAX_EMISSIONS ? 'disabled' : ''}>+</button>
+  </div>`;
+}
+
+function render(active = S.active, visiblePiles = {}) {
 
   // Header
   document.getElementById('header').innerHTML = `
-    <h1>Deck Table</h1>
     ${counter('Turn', 'turn')}
-    ${counter('Emissions', 'emissions')}
-    <div class="spacer"></div>
-    <button data-action="undo" ${history.length ? '' : 'disabled'}>↶ Undo (${history.length})</button>
-    <button class="danger" data-action="confirmNew">New game</button>`;
+    ${emissionsTracker()}
+    <button class="danger new-game" data-action="confirmNew">New game</button>`;
 
   // Banner
   const b = document.getElementById('banner');
@@ -519,27 +1097,38 @@ function render() {
       if (!stacks.has(inst.c)) stacks.set(inst.c, { first: inst, n: 0 });
       stacks.get(inst.c).n++;
     }
-    const perms = [...stacks.values()].map(({ first, n }) => cardHtml(def(first), {
-      small: true,
-      extra: n > 1 ? `<div class="stack">× ${n}</div>` : '',
-      actions: (canBurn(team) ? btn(n > 1 ? 'Burn 1' : 'Burn', `remove:${team}:permanents:${first.u}:Burned`) : '') +
-               btn(n > 1 ? 'Remove 1' : 'Remove', `remove:${team}:permanents:${first.u}:Removed`),
-    })).join('');
+    const renderStack = ({ first, n }) => {
+      const available = (first.c === DATACENTER || MANUAL_SUPPLY[first.c] || EMISSIONS_REDUCTIONS[first.c]) &&
+        p.permanents.find(inst => inst.c === first.c && !S.activatedPermanents?.includes(inst.u));
+      return cardHtml(def(first), {
+        small: true,
+        copies: n,
+        actions: isActive
+          ? (canBurn(team, first) ? btn(n > 1 ? 'Burn 1' : 'Burn', `remove:${team}:permanents:${first.u}:Burned`) : '') +
+            btn(n > 1 ? 'Remove 1' : 'Remove', `remove:${team}:permanents:${first.u}:Removed`) +
+            (available ? btn('Activate', `activatePermanent:${team}:${available.u}`) : '')
+          : '',
+      });
+    };
+    const isFuel = ({ first }) => team === 'dirty' && EXPENDABLE_FUEL.has(first.c);
+    const inPlay = [...stacks.values()];
+    const perms = inPlay.filter(stack => !isFuel(stack)).map(renderStack).join('');
+    const fuel = inPlay.filter(isFuel).map(renderStack).join('');
     return `<section class="player ${team}">
-      <h2><span class="team">${TEAM_LABEL[team]} Energy</span> ${isActive ? '<span class="badge">Active</span>' : ''}
-        <span class="right">${isActive ? '' : btn('Show hand', `showHand:${team}`, '')}</span></h2>
-      <div class="stats">
-        <div class="stat money"><span class="label">Money</span>
-          <button class="small" data-action="money:${team}:-1">−</button><span class="value">${p.money}</span><button class="small" data-action="money:${team}:1">+</button>
-          <button class="small" data-action="money:${team}:5">+5</button></div>
-        <div class="stat"><span class="label">Hand</span><span class="value">${p.hand.length}</span></div>
-        <div class="stat"><span class="label">Draw</span><span class="value">${p.draw.length}</span></div>
-        <div class="stat"><button class="link" data-action="showPile:${team}:discard">Discard</button><span class="value">${p.discard.length}</span></div>
-        <div class="stat"><button class="link" data-action="showPile:${team}:burned">${REMOVED_LABEL[team]}</button><span class="value">${p.burned.length}</span></div>
-        ${btn('Draw 1', `draw:${team}:1`)}
-      </div>
-      <div class="muted" style="font-size:14px;margin-bottom:6px">In play (permanents &amp; resources)</div>
+      <h2><span class="team">${TEAM_LABEL[team]} Energy</span>
+        <span class="stat money">
+          ${isActive ? `<button class="small" aria-label="Subtract one dollar" data-action="money:${team}:-1">−</button>` : ''}
+          <span class="value" data-money-value="${team}">$${p.money}</span>
+          ${isActive ? `<button class="small" aria-label="Add one dollar" data-action="money:${team}:1">+</button>` : ''}
+        </span>
+        ${isActive ? '<span class="right"><span class="badge">Active</span></span>' : ''}
+      </h2>
+      <div class="muted" style="font-size:14px;margin-bottom:6px">In play</div>
       <div class="perm-list">${perms}</div>
+      ${fuel ? `<div class="fuel-group">
+        <h3>Expendable fuel</h3>
+        <div class="perm-list">${fuel}</div>
+      </div>` : ''}
     </section>`;
   }).join('');
 
@@ -547,66 +1136,31 @@ function render() {
   const ap = S.players[active];
   const hand = ap.hand.map(inst => cardHtml(def(inst), {
     actions: btn('Play', `play:${active}:${inst.u}`, 'small primary') +
-             (canBurn(active) ? btn('Burn', `remove:${active}:hand:${inst.u}:Burned`) : '') +
+             btn('Discard', `discardFromHand:${active}:${inst.u}`) +
+             (canBurn(active, inst) ? btn('Burn', `remove:${active}:hand:${inst.u}:Burned`) : '') +
              (canTrash(active) ? btn('Trash', `remove:${active}:hand:${inst.u}:Trashed`, 'small danger') : ''),
   })).join('') || '<div class="muted">Hand is empty.</div>';
   const trashNote = S.trashLeft > 0
     ? `<span class="badge" style="background:#a33">Trash available: ${S.trashLeft}</span>` : '';
   const handSection = `<section class="hand-section ${active}">
-    <h2>${TEAM_LABEL[active]}'s hand <span class="muted" style="font-weight:normal;text-transform:none;letter-spacing:0">(${ap.hand.length} cards · ${TEAM_LABEL[other]} has ${S.players[other].hand.length})</span>
+    <h2>${TEAM_LABEL[active]}'s hand
+      ${ap.preparingHand ? '<span class="muted">Preparing next hand</span>' : ''}
       ${trashNote}
-      <span class="right">${btn('End turn → ' + TEAM_LABEL[other], 'endTurn', 'primary')}</span></h2>
-    <div class="cards">${hand}</div>
-  </section>`;
-
-  // Shops: one row per team; only the active team's row is buyable.
-  const shopRows = TEAMS.map(team => {
-    const shop = S.shops[team];
-    const mine = team === active;
-    const row = shop.row.map((inst, i) => {
-      if (!inst) return `<div class="card empty">empty</div>`;
-      const d = def(inst);
-      const can = mine && ap.money >= d.cost;
-      return cardHtml(d, {
-        actions: `<button class="small primary" data-action="buyShop:${team}:${i}" ${can ? '' : 'disabled'}>Buy (${d.cost})${d.permanent ? ' → play' : ''}</button>`,
-      });
-    }).join('');
-    const perms = shop.permRow.map((inst, i) => {
-      if (!inst) return `<div class="card empty">empty</div>`;
-      const d = def(inst);
-      const can = mine && ap.money >= d.cost;
-      return cardHtml(d, {
-        actions: `<button class="small primary" data-action="buyPermanent:${team}:${i}" ${can ? '' : 'disabled'}>Buy (${d.cost}) → play</button>`,
-      });
-    }).join('');
-    return `<div class="shop-row ${team}${mine ? ' mine' : ''}">
-      <h3>${TEAM_LABEL[team]} shop <span class="muted">(${shop.deck.length} in deck · bought cards join your deck${mine ? '' : ' · not your shop'})</span></h3>
-      <div class="cards">${row}</div>
-      <h3 style="margin-top:12px">${TEAM_LABEL[team]} permanents <span class="muted">(${shop.permDeck.length} in deck · bought cards stay in play)</span></h3>
-      <div class="cards">${perms}</div></div>`;
-  }).join('');
-  const supply = CARD_LIST.filter(c => c.team === 'neutral').map(d => {
-    const left = S.supply[d.id];
-    const has = supplyHas(d.id);
-    const canBuy = has && ap.money >= d.cost;
-    return cardHtml(d, {
-      small: true,
-      extra: `<div class="qty">${left === null ? 'unlimited' : left + ' left'}</div>`,
-      actions: `<button class="small primary" data-action="supply:${d.id}:buy" ${canBuy ? '' : 'disabled'}>Buy (${d.cost})${d.permanent || d.resource ? ' → play' : ''}</button>
-                <button class="small" data-action="supply:${d.id}:take" ${has ? '' : 'disabled'}>Take (free)</button>`,
-    });
-  }).join('');
-  const shopSection = `<section>
-    <h2>Shops <span class="muted" style="text-transform:none;letter-spacing:0">(buying as ${TEAM_LABEL[active]})</span></h2>
-    <div class="shop-grid">
-      ${shopRows}
-      <div class="supply"><h3>Neutral supply <span class="muted">(shared)</span></h3><div class="cards">${supply}</div></div>
+      <span class="right">
+        <button data-action="undo" ${history.length ? '' : 'disabled'}>Undo (${history.length})</button>
+        ${btn('End turn', 'endTurn', 'primary')}
+      </span></h2>
+    <div class="hand-layout">
+      <div class="hand-cards">${hand}</div>
+      <div class="hand-piles">
+        ${playerPileHtml(active, 'draw', visiblePiles[active]?.draw ?? ap.draw)}
+        ${playerPileHtml(active, 'discard', visiblePiles[active]?.discard ?? ap.discard)}
+      </div>
     </div>
   </section>`;
 
-  const logSection = `<section class="log"><h2>Log</h2><ul style="margin:0;padding-left:18px">${S.log.slice(0, 8).map(l => `<li>${esc(l)}</li>`).join('')}</ul></section>`;
 
-  document.getElementById('main').innerHTML = `<div class="players">${panels}</div>${handSection}${shopSection}${logSection}`;
+  document.getElementById('main').innerHTML = `<div class="players">${panels}</div>${handSection}${shopHtml(active)}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -616,28 +1170,76 @@ const dlg = document.getElementById('dlg');
 function openDialog(html) { dlg.innerHTML = html; if (!dlg.open) dlg.showModal(); }
 function closeDialog() { if (dlg.open) dlg.close(); }
 
+let shopSelection = 'deck';
+
+function shopHtml(team) {
+  const selection = shopSelection === 'fuel' && team !== 'dirty' ? 'deck' : shopSelection;
+  const picker = (label, value) => `<button class="small" data-action="selectShop:${value}"
+    aria-pressed="${selection === value}">${label}</button>`;
+  const options = picker(TEAM_LABEL[team] + ' deck shop', 'deck') +
+    picker(TEAM_LABEL[team] + ' permanent shop', 'permanent') +
+    picker('Neutral supply', 'supply') +
+    (team === 'dirty' ? picker('Expendable fuel', 'fuel') : '');
+
+  let content;
+  if (selection === 'supply' || selection === 'fuel') {
+    const fuel = selection === 'fuel';
+    const supply = CARD_LIST.filter(c => c.team === 'neutral' && EXPENDABLE_FUEL.has(c.id) === fuel).map(d => {
+      const left = S.supply[d.id];
+      const has = supplyHas(d.id);
+      const canBuy = has && S.players[team].money >= d.cost;
+      return cardHtml(d, {
+        small: true,
+        extra: `<div class="qty">${left === null ? 'unlimited' : left + ' left'}</div>`,
+        actions: `<button class="small primary" data-action="supply:${d.id}:buy" ${canBuy ? '' : 'disabled'}>Buy</button>
+                  ${has && team === S.active && S.freeSupply?.[d.id]
+                    ? btn('Take (free)', `supply:${d.id}:take`) : ''}`,
+      });
+    }).join('');
+    content = `<div class="cards">${supply}</div>`;
+  } else {
+    const shop = S.shops[team];
+    const permanent = selection === 'permanent';
+    const deck = permanent ? shop.permDeck : shop.deck;
+    const row = permanent ? shop.permRow : shop.row;
+    const action = permanent ? 'buyPermanent' : 'buyShop';
+    const cards = row.map((inst, slot) => {
+      if (!inst) return `<div class="card empty${permanent ? ' landscape' : ''}">Empty slot</div>`;
+      const d = def(inst);
+      const canBuy = team === S.active && S.players[team].money >= d.cost;
+      return cardHtml(d, {
+        small: true,
+        actions: `<button class="small primary" data-action="${action}:${team}:${slot}"
+          ${canBuy ? '' : 'disabled'}>Buy</button>
+          ${!permanent && team === S.active && S.freeShop ? btn('Take (free)', `takeShop:${team}:${slot}`) : ''}`,
+      });
+    }).join('');
+    content = `<div class="shop-cards${permanent ? ' permanent-shop' : ''}">
+      ${pileHtml('Shop draw pile', deck, { style: 'back ' + team })}
+      ${cards}
+    </div>`;
+  }
+
+  return `<section class="shop-section">
+    <h2>Shops</h2>
+    <div class="shop-picker" role="group" aria-label="Choose a shop">${options}</div>
+    <div class="shop-viewport">${content}</div>
+  </section>`;
+}
+
 function showPile(team, pile) {
   const p = S.players[team];
   const cards = p[pile].map(inst => cardHtml(def(inst), {
     small: true,
     actions: pile === 'discard'
-      ? (canBurn(team) ? btn('Burn', `remove:${team}:discard:${inst.u}:Burned`) : '') +
+      ? (canBurn(team, inst) ? btn('Burn', `remove:${team}:discard:${inst.u}:Burned`) : '') +
         (canTrash(team) ? btn('Trash', `remove:${team}:discard:${inst.u}:Trashed`, 'small danger') : '')
       : '',
   })).join('') || '<div class="muted">Empty.</div>';
-  const title = pile === 'burned' ? `${REMOVED_LABEL[team]} (removed from game)` : 'Discard pile';
+  const title = 'Discard pile';
   const note = pile === 'discard' && canTrash(team) ? `<span class="badge" style="background:#a33">Trash available: ${S.trashLeft}</span>` : '';
   openDialog(`<h3>${TEAM_LABEL[team]} — ${title} (${p[pile].length}) ${note} <span class="right">${btn('Close', 'close', '')}</span></h3>
     <div class="cards">${cards}</div>`);
-}
-function showHand(team) {
-  const p = S.players[team];
-  const cards = p.hand.map(inst => cardHtml(def(inst), {
-    small: true,
-    actions: btn('Discard', `discardFromHand:${team}:${inst.u}`) + (canBurn(team) ? btn('Burn', `remove:${team}:hand:${inst.u}:Burned`) : ''),
-  })).join('') || '<div class="muted">Empty.</div>';
-  openDialog(`<h3>${TEAM_LABEL[team]}'s hand (${p.hand.length}) <span class="muted" style="font-weight:normal">— for forced discards; close when done</span>
-    <span class="right">${btn('Close', 'close', '')}</span></h3><div class="cards">${cards}</div>`);
 }
 function confirmNew() {
   openDialog(`<h3>Start a new game?</h3><p>The current game will be erased (undo history too).</p>
@@ -647,7 +1249,17 @@ function confirmNew() {
 // ---------------------------------------------------------------------------
 // Event dispatch (one delegated handler; actions encoded as "name:arg:arg")
 // ---------------------------------------------------------------------------
+document.addEventListener('wheel', event => {
+  if (event.ctrlKey || event.shiftKey || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+  const body = event.target.closest('.card-body');
+  if (!body || body.scrollHeight <= body.clientHeight || !event.cancelable) return;
+  const delta = event.deltaMode === 0 ? event.deltaY : event.deltaY * 16;
+  event.preventDefault();
+  body.scrollTop += Math.max(-16, Math.min(16, delta));
+}, { passive: false });
+
 document.addEventListener('click', e => {
+  if (passingTurn) return;
   const el = e.target.closest('[data-action]');
   if (!el) return;
   const [name, ...args] = el.dataset.action.split(':');
@@ -657,22 +1269,31 @@ document.addEventListener('click', e => {
     case 'money': A.money(args[0], num(args[1])); break;
     case 'draw': A.draw(args[0], num(args[1])); break;
     case 'play': A.play(args[0], num(args[1])); break;
-    case 'discardFromHand': A.discardFromHand(args[0], num(args[1])); if (dlg.open) showHand(args[0]); break;
+    case 'discardFromHand': A.discardFromHand(args[0], num(args[1])); break;
     case 'remove': {
       const [team, from, uid, verb] = args;
-      A.remove(team, from, num(uid), verb);
-      if (dlg.open) { if (from === 'discard') showPile(team, 'discard'); else if (from === 'hand') showHand(team); }
+      const refreshDialog = () => {
+        if (!dlg.open) return;
+        if (from === 'discard') showPile(team, 'discard');
+      };
+      const animation = A.remove(team, from, num(uid), verb);
+      if (animation) animation.then(refreshDialog);
+      else refreshDialog();
       break;
     }
+    case 'selectShop':
+      if (args[0] !== 'fuel' || S.active === 'dirty') { shopSelection = args[0]; render(); }
+      break;
+    case 'activatePermanent': A.activatePermanent(args[0], num(args[1])); break;
+    case 'takeShop': A.buyShop(args[0], num(args[1]), true); break;
     case 'buyShop': A.buyShop(args[0], num(args[1])); break;
     case 'buyPermanent': A.buyPermanent(args[0], num(args[1])); break;
     case 'supply': A.supply(args[0], args[1]); break;
-    case 'endTurn': A.endTurn(); break;
+    case 'endTurn': shopSelection = 'deck'; A.endTurn(); break;
     case 'undo': undo(); break;
     case 'confirmNew': confirmNew(); break;
-    case 'newGame': closeDialog(); A.newGame(); break;
+    case 'newGame': closeDialog(); shopSelection = 'deck'; A.newGame(); break;
     case 'showPile': showPile(args[0], args[1]); break;
-    case 'showHand': showHand(args[0]); break;
     case 'close': closeDialog(); break;
   }
 });
