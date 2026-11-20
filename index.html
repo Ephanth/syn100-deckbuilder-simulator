@@ -1039,7 +1039,7 @@ function autoNotes(d) {
   if (EMISSIONS_REDUCTIONS[d.id]) effects.push('emissions');
   return effects.length ? `<div class="auto">Auto: ${effects.join(' · ')}</div>` : '';
 }
-function cardHtml(d, { small = false, actions = '', extra = '', copies = 1, horizontal = d.permanent } = {}) {
+function cardHtml(d, { small = false, actions = '', extra = '', copies = 1, horizontal = d.permanent || EXPENDABLE_FUEL.has(d.id) } = {}) {
   const unlimited = copies === null;
   const layered = unlimited || copies > 1;
   const depth = unlimited ? 3 : Math.max(0, Math.min(copies - 1, 3));
